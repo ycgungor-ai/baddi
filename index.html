@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Baddi - Kelime Avı</title>
+<script src="https://www.gstatic.com/firebasejs/10.4.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.4.0/firebase-database-compat.js"></script>
+<!-- Harici Devasa Sözlük Dosyası -->
+<script src="words.js"></script>
+<style>
+:root { box-sizing: border-box; --bg: #12363d; --card: #1b4a53; --ink: #fff4d6; --sun: #ffc533; --ok: #7fd69a; --bad: #ff8a7e; --font: "Trebuchet MS", Verdana, sans-serif; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); }
+.view { position: fixed; inset: 0; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; }
+.content-box { max-width: 560px; width: 100%; margin: auto; display: flex; flex-direction: column; gap: 14px; justify-content: center; }
+h1 { margin: 0 0 10px 0; font-size: 34px; color: var(--sun); text-align: center; }
+p { margin: 0; opacity: .85; text-align: center; font-size: 16px; }
+.mbtn { font: inherit; font-size: 18px; font-weight: bold; padding: 16px 20px; border: 0; border-radius: 14px; background: var(--sun); color: #12363d; cursor: pointer; text-align: center; width: 100%; }
+.mbtn.alt { background: var(--card); color: var(--ink); border: 2px solid transparent; }
+.top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.back-btn { font: inherit; font-size: 15px; font-weight: bold; padding: 8px 16px; border: 0; border-radius: 20px; background: var(--card); color: var(--ink); cursor: pointer; }
+.name-input { width: 100%; padding: 16px; font-size: 20px; font-weight: bold; text-align: center; border-radius: 14px; border: 2px solid var(--sun); background: var(--card); color: var(--ink); outline: none; box-sizing: border-box; font-family: inherit; }
+.profile-row { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 14px 18px; border-radius: 12px; font-size: 18px; font-weight: bold; margin-bottom: 8px; }
+.profile-score { color: var(--sun); }
+.hud { display: flex; justify-content: space-between; align-items: center; font-size: 17px; font-weight: bold; color: var(--sun); background: var(--card); padding: 12px; border-radius: 12px; margin-bottom: 10px; }
+.mascot-box { display: flex; align-items: center; gap: 15px; background: var(--card); padding: 12px 16px; border-radius: 14px; margin-bottom: 10px; }
+.mascot-icon { font-size: 42px; }
+.mascot-text { font-size: 15px; font-weight: bold; color: var(--ink); }
+.letter-box { width: 42px; height: 48px; font-size: 24px; font-weight: bold; background: var(--card); color: var(--sun); border: 2px dashed var(--sun); border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.pool-btn { width: 42px; height: 48px; font-size: 22px; font-weight: bold; background: var(--sun); color: #12363d; border: 0; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+.action-btn { padding: 10px 4px; font-size: 13px; border-radius: 10px; font-weight: bold; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="screen-login" class="view">
+  <div class="content-box">
+    <div style="text-align:center; margin-bottom:10px;">
+      <div style="font-size:70px; margin-bottom:10px;">🔤</div>
+      <h1>Kelime Avı</h1>
+      <p style="color:var(--ok); font-weight:bold;">Online Liderlik Tablosu</p>
+    </div>
+    <div style="background:var(--card); padding:20px; border-radius:14px; text-align:center;">
+      <p id="login-status" style="margin-bottom:15px; font-weight:bold;">Bağlanıyor...</p>
+      <input type="text" id="player-name" class="name-input" placeholder="Adınız..." autocomplete="off">
+      <button class="mbtn" style="margin-top:15px; background:var(--ok);" onclick="login()">Giriş Yap</button>
+    </div>
+    <button class="mbtn alt" style="margin-top:5px;" onclick="showLeaderboardScreen()">🏆 Liderlik Tablosu</button>
+  </div>
+</div>
+
+<div id="screen-leaderboard" class="view" hidden>
+  <div class="top-bar"><button class="back-btn" onclick="goBackFromLeaderboard()">‹ Geri</button></div>
+  <div class="content-box">
+    <h1>🏆 Liderlik Tablosu</h1>
+    <div id="global-leaderboard-list" style="margin-top:15px; max-height:400px; overflow-y:auto;"></div>
+  </div>
+</div>
+
+<div id="screen-menu" class="view" hidden>
+  <div class="top-bar">
+    <button class="back-btn" onclick="logout()">‹ Çıkış</button>
+    <span id="current-user-display" style="font-weight:bold; color:var(--sun);"></span>
+  </div>
+  <div class="content-box">
+    <div style="text-align:center; margin-bottom:20px;">
+      <div style="font-size:60px; margin-bottom:10px;">🎯</div>
+      <h1>Hazır mısın?</h1>
+    </div>
+    <button class="mbtn" style="background:var(--sun); margin-bottom:10px;" onclick="startGame()">Oyuna Başla 🚀</button>
+    <button class="mbtn alt" onclick="showLeaderboardScreen()">🏆 Liderlik Tablosu</button>
+  </div>
+</div>
+
+<div id="screen-game" class="view" hidden>
+  <div class="top-bar" style="justify-content: center;">
+    <span id="hud-level-indicator" style="font-weight:bold; color:var(--ink); background:var(--card); padding:6px 16px; border-radius:20px; font-size:16px;"></span>
+  </div>
+  <div class="content-box">
+    <div class="hud">
+      <span id="hud-score">Skor: 0</span>
+      <span id="hud-combo" style="color:var(--ok)">Kombo: x0</span>
+      <span id="hud-lives">❤️❤️❤️</span>
+    </div>
+    <div class="mascot-box">
+      <div class="mascot-icon">🦨</div>
+      <div class="mascot-text" id="mascot-text">Hadi başlayalım!</div>
+    </div>
+    <div style="background:var(--card); padding:16px; border-radius:14px; text-align:center;">
+      <p style="font-size:15px; opacity:0.9;" id="word-counter-text">İpucu (1/10):</p>
+      <p id="game-hint" style="font-size:20px; font-weight:bold; color:var(--sun); margin-top:6px;"></p>
+    </div>
+    <div id="word-slots" style="display:flex; justify-content:center; gap:8px; margin:15px 0;"></div>
+    <div id="letter-pool" style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;"></div>
+    
+    <div class="grid-3">
+      <button class="action-btn" style="background:var(--sun); color:#12363d;" onclick="useJoker()"><span style="font-size:18px;">💡</span><span>Harf Al (-15P)</span></button>
+      <button class="action-btn" style="background:var(--card); color:var(--ink); border:2px solid var(--ink);" onclick="skipWord()"><span style="font-size:18px;">⏭</span><span>Pas Geç</span></button>
+      <button class="action-btn" style="background:#f5f6fa; color:#2f3640;" onclick="endGameEarly()"><span style="font-size:18px;">🛑</span><span>Kasaya Dön</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-result" class="view" hidden>
+  <div class="content-box">
+    <h1 id="result-title">Oyun Bitti</h1>
+    <p id="result-desc" style="color:var(--ok); font-weight:bold; font-size:18px;"></p>
+    <h2 style="text-align:center; color:var(--sun); margin-top:15px;">Liderlik Tablosu</h2>
+    <div id="result-leaderboard" style="max-height:250px; overflow-y:auto; margin-bottom:15px;"></div>
+    <button class="mbtn" onclick="showScreen('screen-menu')">Ana Menüye Dön</button>
+  </div>
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyBF9F5Upi_YLi9MdKN7TL3jzO0cnRILWYQ",
+  authDomain: "baddi-3e8a9.firebaseapp.com",
+  databaseURL: "https://baddi-3e8a9-default-rtdb.firebaseio.com",
+  projectId: "baddi-3e8a9"
+});
+const db = firebase.database();
+
+let profiles=[], currentUser=null, score=0, combo=0, lives=3, currentLevelLength=3, wordsInCurrentLevel=0;
+let curWord, targetLen, placed=[], pool=[], currentLevelPool=[];
+
+db.ref('kelime_avi_skorlar').on('value', (snap) => {
+  let d=snap.val(); profiles=[]; if(d) for(let k in d) profiles.push(d[k]);
+  document.getElementById('login-status').textContent="Bağlantı Başarılı!";
+});
+
+function showScreen(id) { ['screen-login','screen-leaderboard','screen-menu','screen-game','screen-result'].forEach(s=>document.getElementById(s).hidden=(s!==id)); }
+
+function login() {
+  let n=document.getElementById('player-name').value.trim(); if(!n) return alert("Adını yaz");
+  currentUser={name:n,score:0}; document.getElementById('current-user-display').textContent='👤'+n; showScreen('screen-menu');
+}
+
+function logout() { currentUser=null; showScreen('screen-login'); }
+
+function showLeaderboardScreen() {
+  let l=document.getElementById('global-leaderboard-list'); profiles.sort((a,b)=>b.score-a.score);
+  l.innerHTML=profiles.map((p,i)=>`<div class="profile-row"><span>${i+1}. ${p.name}</span><span class="profile-score">${p.score} Puan</span></div>`).join('');
+  showScreen('screen-leaderboard');
+}
+
+function goBackFromLeaderboard() { showScreen(currentUser?'screen-menu':'screen-login'); }
+
+function startGame() { score=0; combo=0; lives=3; currentLevelLength=3; wordsInCurrentLevel=0; loadPool(); showScreen('screen-game'); nextWord(); }
+
+function loadPool() { 
+  currentLevelPool=[...(LENGTH_DB[currentLevelLength] || LENGTH_DB[3])].sort(()=>Math.random()-0.5); 
+}
+
+function nextWord() {
+  if(currentLevelPool.length===0) { 
+    currentLevelLength++; 
+    if(!LENGTH_DB[currentLevelLength]) currentLevelLength = 3; 
+    wordsInCurrentLevel = 0;
+    loadPool(); 
+  }
+  curWord=currentLevelPool.shift(); targetLen=curWord.w.length; 
+  placed=Array(targetLen).fill(null);
+  
+  let lets = curWord.w.split('');
+  pool = lets.map((c,i)=>({id:i, char:c, used:false, isJoker:false})).sort(()=>Math.random()-0.5);
+  
+  document.getElementById('game-hint').textContent = curWord.h;
+  document.getElementById('hud-level-indicator').textContent = currentLevelLength + " Harfli";
+  document.getElementById('word-counter-text').textContent = `İpucu (${wordsInCurrentLevel + 1}/10):`;
+  document.getElementById('mascot-text').textContent = `${currentLevelLength} harfli kelimeyi bulalım!`;
+  renderBoard(); updateHud();
+}
+
+function renderBoard() {
+  document.getElementById('word-slots').innerHTML = placed.map((c,i)=>
+    `<div class="letter-box" onclick="unplaceChar(${i})">${c ? c.char : ''}</div>`
+  ).join('');
+  
+  document.getElementById('letter-pool').innerHTML = pool.map((p,i)=>
+    p.used ? `<div style="width:42px;height:48px"></div>` : `<button class="pool-btn" onclick="placeChar(${i})">${p.char}</button>`
+  ).join('');
+}
+
+function updateHud() {
+  document.getElementById('hud-score').textContent = "Skor: " + score;
+  document.getElementById('hud-combo').textContent = "Kombo: x" + combo;
+  document.getElementById('hud-lives').textContent = "❤️".repeat(lives);
+}
+
+function placeChar(idx) {
+  let ei = placed.indexOf(null);
+  if(ei !== -1) {
+    placed[ei] = pool[idx]; 
+    pool[idx].used = true; 
+    renderBoard();
+    
+    if(!placed.includes(null)) {
+      let formedWord = placed.map(p => p.char).join('');
+      if(formedWord === curWord.w) {
+        combo++;
+        let points = (currentLevelLength * 5) + (combo * 5);
+        score += points; 
+        wordsInCurrentLevel++;
+        updateHud(); 
+        document.getElementById('mascot-text').textContent = `Doğru! +${points} Puan`;
+        setTimeout(nextWord, 900);
+      } else {
+        combo = 0;
+        lives--; 
+        updateHud();
+        document.getElementById('mascot-text').textContent = `Yanlış kelime!`;
+        if(lives <= 0) {
+          gameOver("Canlar Tükendi");
+        } else {
+          setTimeout(() => {
+            pool.forEach(p => { if(!p.isJoker) p.used = false; });
+            placed = Array(targetLen).fill(null);
+            renderBoard();
+            document.getElementById('mascot-text').textContent = `${currentLevelLength} harfli kelimeyi bulalım!`;
+          }, 800);
+        }
+      }
+    }
+  }
+}
+
+function unplaceChar(bi) {
+  if(placed[bi] && !placed[bi].isJoker) {
+    placed[bi].used = false; 
+    placed[bi] = null; 
+    renderBoard();
+  }
+}
+
+function useJoker() {
+  if(score < 15) { document.getElementById('mascot-text').textContent = "Puanın yetersiz (-15P lazım)!"; return; }
+  let emptyIdx = placed.indexOf(null);
+  if(emptyIdx === -1) return;
+  score -= 15; updateHud();
+  let correctChar = curWord.w[emptyIdx];
+  let poolIdx = pool.findIndex(p => p.char === correctChar && !p.used && !p.isJoker);
+  if(poolIdx !== -1) {
+    pool[poolIdx].used = true;
+    pool[poolIdx].isJoker = true;
+    placed[emptyIdx] = pool[poolIdx];
+    document.getElementById('mascot-text').textContent = "Joker kullanıldı!";
+    renderBoard();
+    if(!placed.includes(null)) placeChar(-1);
+  }
+}
+
+function skipWord() { combo = 0; updateHud(); nextWord(); }
+function endGameEarly() { gameOver("Oyundan Çekildin");
+}
+
+function gameOver(r) {
+  document.getElementById('result-title').textContent = r;
+  document.getElementById('result-desc').textContent = "Kazanılan Puan: " + score;
+  if(score > 0 && currentUser) {
+    let sk = currentUser.name.replace(/[.#$\[\]]/g,'');
+    db.ref('kelime_avi_skorlar/'+sk).once('value', sn => {
+      let os = sn.exists() ? sn.val().score : 0;
+      db.ref('kelime_avi_skorlar/'+sk).set({name: currentUser.name, score: os + score});
+    });
+  }
+  let l = document.getElementById('result-leaderboard');
+  l.innerHTML = profiles.map((p,i)=>`<div class="profile-row"><span>${i+1}. ${p.name}</span><span class="profile-score">${p.score} Puan</span></div>`).join('');
+  showScreen('screen-result');
+}
+</script>
+</body>
+</html>
